@@ -1,0 +1,100 @@
+---
+title: "CAND3 RRW exercise"
+author: "Pratik Mahajan"
+date: "2023-09-23"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+df<- read.csv("gss_data.csv")
+
+
+# Reverse coding 1-5, setting other values to NA
+df$Time_with_kids <- with(df, ifelse(TSA_030 %in% 1:5, 6 - TSA_030, NA))
+
+# Reverse coding for LAF_50, setting others to NA
+df$Visiting_Father <- with(df, ifelse(LAF_50 %in% 1:5, 6 - LAF_50, NA))
+
+# Reverse coding for LAM_50, setting others to NA
+df$Visiting_Mother <- with(df, ifelse(LAM_50 %in% 1:5, 6 - LAM_50, NA))
+
+# Retain only entries 1 and 2 for SEX, set others to NA
+df$SEX <- ifelse(df$SEX %in% c(1, 2), df$SEX, NA)
+```
+
+#Descriptive statistics 
+
+#Time Spent with kids
+```{r}
+install.packages("gt")
+install.packages("tidyverse")
+library(gt)
+library(tidyverse)
+```
+
+```{r}
+Time_freq_table <- table(df$Time_with_kids)
+Time_freq_df <- as.data.frame(Time_freq_table)
+
+# Assuming the levels of TSA_030 align with the order of labels provided:
+labels <- c("Not at all", "Less than once a month", "Once a month", "Once a week", "Daily")
+
+# Insert the labels column
+Time_freq_df <- Time_freq_df %>%
+  mutate(Time_with_kids = factor(labels, levels = labels)) %>%
+  select(Time_with_kids, everything())
+```
+
+```{r}
+gt(Time_freq_df) %>%
+  tab_header(
+    title = "Frequency Distribution",
+    subtitle = "Variable: Time_with_kids"
+  ) %>%
+  cols_label(
+    Var1 = "Code",
+    Freq = "Frequency"
+  )
+
+```
+
+
+#Visits to Parents
+
+```{r}
+# Convert the data to a longer format
+long_data <- df %>%
+  select(Visiting_Father, Visiting_Mother) %>%
+  gather(key = "Parent", value = "Frequency") %>%filter(!is.na(Frequency)) %>% 
+  mutate(Time_Spent = factor(labels[Frequency], levels = labels))
+
+ggplot(long_data, aes(x = Time_Spent)) + 
+  geom_bar(aes(fill = Time_Spent), position = "dodge") +
+  labs(title = "Frequency Distribution of Visits", 
+       x = "Frequency of Visits", 
+       y = "Count") +
+  facet_grid(. ~ Parent) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+
+#Multivariable regression
+```{r}
+install.packages("stargazer")
+library(stargazer)
+
+```
+```{r}
+model <- lm(Time_with_kids ~ Visiting_Father + Visiting_Mother + SEX, data = df)
+
+stargazer(model, type="text", title="Regression Results", single.row=TRUE)
+
+
+```
+
