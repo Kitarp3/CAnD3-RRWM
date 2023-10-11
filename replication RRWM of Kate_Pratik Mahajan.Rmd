@@ -1,0 +1,80 @@
+---
+title: "RRWM replication of Kate's work_Pratik Mahajan"
+output: pdf_document
+date: "2023-10-11"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+gss_data<- read.csv("gss_data.csv")
+```
+
+```{r}
+# 1. Recoding FI_505 variable
+gss_data$contraception <- ifelse(gss_data$FI_505 == 1, 1, 
+                                 ifelse(gss_data$FI_505 == 2, 0, NA))
+gss_data$FI_505 <- NULL  # Remove the old column
+
+# 2. Recoding FI_105 variable
+gss_data$children_3_years <- ifelse(gss_data$FI_105 %in% c(1, 2), 1, 
+                                    ifelse(gss_data$FI_105 %in% c(3, 4), 0, NA))
+gss_data$FI_105 <- NULL  # Remove the old column
+
+# Corrected recoding for FI_240
+gss_data$spouse_cannot <- ifelse(gss_data$FI_240 == 1, 1, 
+                                 ifelse(gss_data$FI_240 == 2, 0, NA))
+gss_data$FI_240 <- NULL  # Remove the old column
+
+```
+
+```{r}
+library(tidyr)
+library(ggplot2)
+
+# Create subset with the required columns
+subset_gss <- gss_data[, c("contraception", "children_3_years", "spouse_cannot")]
+
+# Reshape the data
+subset_long <- gather(subset_gss, key = "variable", value = "value")
+
+# Ensure the value column is of factor type with explicit levels
+subset_long$value <- factor(subset_long$value, levels = c(0, 1))
+
+# Drop rows with NA values
+subset_long <- subset_long[!is.na(subset_long$value),]
+
+# Plotting with stacked bars
+plot <- ggplot(subset_long, aes(x = variable, fill = value)) +
+  geom_bar(position = "stack") +
+  labs(title = "Response Counts per Question",
+       x = "Question",
+       y = "Count",
+       fill = "Response") +
+  scale_fill_manual(values = c("red", "blue"), labels = c("No", "Yes")) + 
+  theme_minimal()
+
+print(plot)
+
+```
+
+```{r}
+install.packages("stargazer")
+library(stargazer)
+```
+```{r}
+# Subset the data omitting NA values
+data_subset <- gss_data[!is.na(gss_data$contraception) & !is.na(gss_data$children_3_years) & !is.na(gss_data$spouse_cannot),]
+
+# Create the linear regression model
+model <- lm(contraception ~ children_3_years + spouse_cannot, data = data_subset)
+
+```
+
+```{r}
+stargazer(model, type = "text", title="Regression Results", single.row = TRUE)
+
+```
+
